@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Crypto Mobile</title>
 
 <style>
@@ -14,7 +14,6 @@ body{
     overflow:hidden;
 }
 
-/* 📱 МОБИЛЬНЫЙ КОНТЕЙНЕР */
 .container{
     width:100%;
     max-width:420px;
@@ -22,31 +21,26 @@ body{
     padding:10px;
 }
 
-/* карточки компактнее */
 .card{
     background:rgba(255,255,255,0.05);
     border:1px solid rgba(255,255,255,0.08);
     border-radius:12px;
     padding:8px;
     margin-top:8px;
-    font-size:14px;
 }
 
-/* цена меньше */
 .price{
     font-size:22px;
     color:#00ffcc;
     font-weight:bold;
 }
 
-/* график меньше (ВАЖНО) */
 canvas{
     width:100%;
     height:140px;
     border-radius:10px;
 }
 
-/* кнопки большие как на телефоне */
 button{
     width:100%;
     margin-top:6px;
@@ -54,11 +48,9 @@ button{
     border:none;
     border-radius:10px;
     font-weight:bold;
-    font-size:14px;
     background:linear-gradient(135deg,#00ffcc,#00aaff);
 }
 
-/* вкладки */
 .tabs{
     display:flex;
     gap:6px;
@@ -71,7 +63,6 @@ button{
     text-align:center;
     border-radius:10px;
     background:#151c2c;
-    font-size:13px;
 }
 
 .active{
@@ -79,9 +70,11 @@ button{
     color:black;
 }
 
-/* убираем скролл */
-html,body{
-    height:100%;
+#msg{
+    margin-top:6px;
+    color:#ff4d4d;
+    font-weight:bold;
+    min-height:18px;
 }
 </style>
 </head>
@@ -91,7 +84,7 @@ html,body{
 <div class="container">
 
 <div class="card">
-💰 <b id="money">1000</b>$ | 🪙 <b id="coin">0</b>
+💰 <b id="money">0</b>$ | 🪙 <b id="coin">0</b>
 </div>
 
 <div class="tabs">
@@ -99,11 +92,10 @@ html,body{
 <div class="tab" id="t2" onclick="openTab('shop')">🛒</div>
 </div>
 
-<!-- 📈 MARKET -->
 <div id="marketTab">
 
 <div class="card">
-📈 <div class="price" id="price">100</div>
+📈 <div class="price" id="price">0</div>
 <canvas id="c"></canvas>
 </div>
 
@@ -112,21 +104,16 @@ html,body{
 <button onclick="sell()">SELL</button>
 </div>
 
-<div class="card">
-📊 PnL: <span id="pnl">0</span>
 </div>
 
-</div>
-
-<!-- 🛒 SHOP -->
 <div id="shopTab" style="display:none;">
 
 <div class="card">
 <h3>🛒 SHOP</h3>
 
-<button id="luckBtn" onclick="buyItem('luck')">🍀 x2 — 1200$</button>
-<button id="magnetBtn" onclick="buyItem('magnet')">💰 x2 — 2000$</button>
-<button id="botBtn" onclick="buyBot()">🤖 BOT — 3500$</button>
+<button onclick="buyBot()">🤖 BOT — 3000$</button>
+
+<div id="msg"></div>
 
 </div>
 
@@ -136,152 +123,152 @@ html,body{
 
 <script>
 
-let price=100;
-let money=1000;
-let coin=0;
+let price = Number(localStorage.getItem("price")) || 100;
+let money = Number(localStorage.getItem("money")) || 1000;
+let coin = Number(localStorage.getItem("coin")) || 0;
 
-let luck=1;
-let magnet=1;
-let bot=false;
+let bot = localStorage.getItem("bot") === "true";
+let boughtBot = localStorage.getItem("boughtBot") === "true";
 
-let bought={luck:false,magnet:false,bot:false};
+let history = JSON.parse(localStorage.getItem("history")) || [price];
 
-let history=[100];
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
 
-// 📱 вкладки
+function resize(){
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 140;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// msg
+function showMsg(t){
+    const el = document.getElementById("msg");
+    el.innerText = t;
+    setTimeout(()=>el.innerText="",1500);
+}
+
+// save
+function save(){
+    localStorage.setItem("money",money);
+    localStorage.setItem("coin",coin);
+    localStorage.setItem("price",price);
+    localStorage.setItem("bot",bot);
+    localStorage.setItem("boughtBot",boughtBot);
+    localStorage.setItem("history",JSON.stringify(history));
+}
+
+// tabs
 function openTab(tab){
     document.getElementById("marketTab").style.display = tab==="market"?"block":"none";
     document.getElementById("shopTab").style.display = tab==="shop"?"block":"none";
 
-    document.getElementById("t1").classList.remove("active");
-    document.getElementById("t2").classList.remove("active");
-
-    if(tab==="market") document.getElementById("t1").classList.add("active");
-    else document.getElementById("t2").classList.add("active");
+    document.getElementById("t1").classList.toggle("active",tab==="market");
+    document.getElementById("t2").classList.toggle("active",tab==="shop");
 }
 
-// 📈 рынок (65/35)
+// market
 function market(){
 
-    let roll=Math.random();
-    let change=0;
-
-    if(roll<0.65) change=Math.random()*10;
-    else change=-Math.random()*12;
-
-    change*=luck;
-
-    if(Math.random()<0.03)
-        change+=(Math.random()<0.5?-1:1)*40;
-
-    price=Math.max(1,price+change);
+    let change = (Math.random()-0.5)*12;
+    price = Math.max(1, price + change);
 
     history.push(price);
-    if(history.length>45) history.shift();
+    if(history.length > 40) history.shift();
 
     draw();
     update();
+    save();
 
     if(bot) botTrade();
 }
 
-// 📊 график
+// graph
 function draw(){
-    let c=document.getElementById("c");
-    let ctx=c.getContext("2d");
 
-    c.width=c.offsetWidth;
-    c.height=c.offsetHeight;
-
-    ctx.clearRect(0,0,c.width,c.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
     ctx.beginPath();
     ctx.strokeStyle="#00ffcc";
     ctx.lineWidth=2;
 
-    let step=c.width/history.length;
+    let step = canvas.width/(history.length-1);
 
     for(let i=0;i<history.length;i++){
-        let x=i*step;
-        let y=c.height-(history[i]/200)*c.height;
+        let x = i*step;
+        let y = canvas.height - (history[i]/200)*canvas.height;
 
-        if(i==0) ctx.moveTo(x,y);
+        if(i===0) ctx.moveTo(x,y);
         else ctx.lineTo(x,y);
     }
 
     ctx.stroke();
 }
 
-// 💰 update
+// UI
 function update(){
-    document.getElementById("price").innerText=price.toFixed(2);
-    document.getElementById("money").innerText=money.toFixed(2);
-    document.getElementById("coin").innerText=coin;
-
-    let pnl=(coin*price*magnet+money)-1000;
-    document.getElementById("pnl").innerText=pnl.toFixed(2);
+    document.getElementById("price").textContent = price.toFixed(2);
+    document.getElementById("money").textContent = money.toFixed(0);
+    document.getElementById("coin").textContent = coin;
 }
 
-// 💰 buy/sell
+// buy/sell
 function buy(){
-    if(money>=price){
-        money-=price;
+    if(money >= price){
+        money -= price;
         coin++;
+        save();
+    } else {
+        showMsg("Недостаточно средств");
     }
 }
 
 function sell(){
-    if(coin>0){
-        money+=price*magnet;
+    if(coin > 0){
+        money += price;
         coin--;
+        save();
     }
 }
 
-// 🛒 shop
-function buyItem(type){
-
-    if(type==="luck" && !bought.luck && money>=1200){
-        money-=1200;
-        luck=2;
-        bought.luck=true;
-        document.getElementById("luckBtn").innerText="✔";
-    }
-
-    if(type==="magnet" && !bought.magnet && money>=2000){
-        money-=2000;
-        magnet=2;
-        bought.magnet=true;
-        document.getElementById("magnetBtn").innerText="✔";
-    }
-}
-
+// bot
 function buyBot(){
-    if(!bought.bot && money>=3500){
-        money-=3500;
-        bot=true;
-        bought.bot=true;
-        document.getElementById("botBtn").innerText="✔";
+    if(!boughtBot && money >= 3000){
+        money -= 3000;
+        bot = true;
+        boughtBot = true;
+        save();
+        showMsg("БОТ КУПЛЕН");
+    } else {
+        showMsg("Недостаточно средств");
     }
 }
 
-// 🤖 bot
 function botTrade(){
 
-    let last=history[history.length-1];
-    let prev=history[history.length-2];
+    let last = history[history.length-1];
+    let prev = history[history.length-2];
 
-    if(last<prev && money>=price){
-        money-=price;
+    if(last < prev && money >= price){
+        money -= price;
         coin++;
     }
 
-    if(last>prev && coin>0){
-        money+=price*magnet;
+    if(last > prev && coin > 0){
+        money += price;
         coin--;
     }
 }
 
-setInterval(market,800);
+// loop
+function loop(){
+    market();
+    requestAnimationFrame(()=>setTimeout(loop,200));
+}
+
+loop();
+
 update();
 
 </script>
